@@ -24,7 +24,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 #%%  方式一：使用request和bs4进行提取
 '''
 由于提取过程中没有注意访问频率，最后
-似乎出现ip被封，访问时服务器无应答
+似乎出现ip被封，访问时服务器无应答，解封后可正常使用
 '''
 # 提取文章标题和对应的链接
 def extract(url, data_id):
@@ -52,20 +52,21 @@ def extract(url, data_id):
         'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36',
     }
     try:
-        proxies = { "http": None, "https": None}
+        # 注意是"https": 'http://127.0.0.1:4780'，而不是"https": 'https://127.0.0.1:4780'
+        proxies = { "http": 'http://127.0.0.1:4780', "https": 'http://127.0.0.1:4780'}
         request = requests.get(url,headers,verify=False,proxies=proxies)
         
         html = request.text
         soup = BeautifulSoup(html, 'lxml')
-        content = soup.select("#issue-%d > div > div.edit-comment-hide > task-lists > table > tbody > tr:nth-child(1) > td > p:nth-child(1) > a"%data_id)
+        content = soup.select("#issue-{} > div > div.edit-comment-hide > task-lists > table > tbody > tr:nth-child(1) > td > p:nth-child(1) > a".format(data_id))
         return content[0].text, content[0].attrs['href']
         
     except:
-        print("Failed to get text and link !!!")
+        print("Failed to get text and link !!!  \n  url:{url} data_id:{data_id}".format(url=url, data_id=data_id))
         return False
 
 # 获取每一个issue的data-id，data-id在使用选择器筛选信息时需要使用到
-def get_id_list():
+def get_id_list(issue_ids):
     headers = {
         ':authority': 'github.com',
         ':method': 'GET',
@@ -89,31 +90,39 @@ def get_id_list():
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36',
         }
     try:
-        proxies = { "http": 'http://127.0.0.1:4780', "https": 'https://127.0.0.1:4780'}
-        proxies = {"http":None, "https":None}
+        # 注意是"https": 'http://127.0.0.1:4780'，而不是"https": 'https://127.0.0.1:4780'
+        proxies = { "http": 'http://127.0.0.1:4780', "https": 'http://127.0.0.1:4780'}
+        #proxies = {"http":None, "https":None}
         url = "https://github.com/labuladong/challenge/issues"
         response = requests.get(url,headers,verify=False,proxies=proxies)
         html = response.text
         soup = BeautifulSoup(html, 'lxml')
         # 提取出data-id，并存放在列表中
         id_list = []
-        for issue_id in range(25,46):
+        for issue_id in issue_ids:
             content = soup.select("#issue_%d"%issue_id)
             id_list.append(content[0].attrs['data-id'])
             
         return id_list
     except:
         print("Failed to get data-id !!!")
+        return []
         
 # 获取全部的文章标题和链接，处理后保存当文件中
 def get_info():
-    id_list = get_id_list()
-    issue_id = 25
-    for issue_id in range(25,46):
-        data_id = id_list[issue_id-25]
-        url = "https://github.com/labuladong/challenge/issues/%d"%issue_id
+    # 由于issue编号中没有28，所以不能使用range(25,46)的方式来得到issue_id
+    issue_ids = [25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46]
+    id_list = get_id_list(issue_ids)
+    index = 0
+    for issue_id in issue_ids:
+        data_id = id_list[index]
+        url = "https://github.com/labuladong/challenge/issues/%d"%issue_ids[index]
         text, link = extract(url,data_id)
         print(text, link)
+        # 等待4~10秒再进行下一次访问
+        #wait_time = random.random()*6 + 4
+        time.sleep(0.2)
+        index += 1
         
 #%%  方式二：使用selenium
 '''
@@ -170,8 +179,8 @@ def get_info_by_selenium():
         browser.close()
     
 if __name__ == "__main__":
-    #get_info()             # 方式一
-    get_info_by_selenium()  # 方式二
+    get_info()             # 方式一
+    # get_info_by_selenium()  # 方式二
     
 '''
 使用VScode正则处理后结果如下：
